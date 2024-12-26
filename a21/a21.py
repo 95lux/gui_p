@@ -3,8 +3,9 @@ import sqlite3
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QFormLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem
+    QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QDialog  
 )
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
 
@@ -53,13 +54,6 @@ class BloodPressureTracker(QMainWindow):
         self.evaluate_button.clicked.connect(self.show_evaluation_dialog)
         layout.addWidget(self.evaluate_button)
 
-        # Table for displaying entries
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Zeitstempel", "SYS", "DIA", "Puls"])
-        layout.addWidget(self.table)
-
-        self.load_entries()  # Load existing entries
-
     def create_table(self):
         """Creates the table in the SQLite database if it doesn't exist."""
         cursor = self.connection.cursor()
@@ -90,10 +84,6 @@ class BloodPressureTracker(QMainWindow):
             ''', (timestamp, sys_value, dia_value, pulse_value))
             self.connection.commit()
 
-            # Insert entry into the table view
-            entry = BloodPressureEntry(timestamp, sys_value, dia_value, pulse_value)
-            self.insert_row(entry)
-
             # Clear input fields
             self.sys_input.clear()
             self.dia_input.clear()
@@ -101,17 +91,8 @@ class BloodPressureTracker(QMainWindow):
         except ValueError:
             QMessageBox.warning(self, "Fehler", "Bitte gültige Werte eingeben!")
 
-    def insert_row(self, entry):
-        """Inserts a row into the table view."""
-        row_position = self.table.rowCount()
-        self.table.insertRow(row_position)
-        self.table.setItem(row_position, 0, QTableWidgetItem(entry.timestamp))
-        self.table.setItem(row_position, 1, QTableWidgetItem(str(entry.sys)))
-        self.table.setItem(row_position, 2, QTableWidgetItem(str(entry.dia)))
-        self.table.setItem(row_position, 3, QTableWidgetItem(str(entry.pulse)))
-
     def load_entries(self):
-        """Loads blood pressure entries from the database and displays them in the table."""
+        """Loads blood pressure entries from the database and displays them in the evaluation table."""
         cursor = self.connection.cursor()
         cursor.execute('SELECT timestamp, sys, dia, pulse FROM blood_pressure')
         for timestamp, sys, dia, pulse in cursor.fetchall():
@@ -121,34 +102,80 @@ class BloodPressureTracker(QMainWindow):
     def show_evaluation_dialog(self):
         """Shows a dialog for evaluation of the blood pressure data."""
         dialog = EvaluationDialog(self.connection, self)
+        dialog.display_data()
         dialog.exec_()
 
+# Enum-like structure for days
+class DaysOption:
+    LAST_7_DAYS = 7
+    LAST_31_DAYS = 31
+    LAST_90_DAYS = 90
 
-class EvaluationDialog(QWidget):
+    @staticmethod
+    def get_day_options():
+        return {
+            "Letzte 7 Tage": DaysOption.LAST_7_DAYS,
+            "Letzte 31 Tage": DaysOption.LAST_31_DAYS,
+            "Letzte 90 Tage": DaysOption.LAST_90_DAYS
+        }
+
+class EvaluationDialog(QDialog):
+    # Color attributes for each category
+    COLOR_OPTIMAL = QColor(0, 255, 0)  # Green: Optimal
+    COLOR_NORMAL = QColor(0, 255, 0)  # Green: Normal
+    COLOR_HOCHNORMAL = QColor(255, 255, 0)  # Yellow: Hochnormal
+    COLOR_HYPERTONIE_GRAD_1 = QColor(200, 0, 0)  # Red: Hypertonie Grad 1
+    COLOR_HYPERTONIE_GRAD_2 = QColor(200, 0, 0)  # Red: Hypertonie Grad 2
+    COLOR_HYPERTONIE_GRAD_3 = QColor(200, 0, 0)  # Red: Hypertonie Grad 3
+    COLOR_ISOLIERTE_HYPERTONIE = QColor(200, 0, 0)  # Red: Isolierte systolische Hypertonie
+    COLOR_DEFAULT = QColor(255, 255, 255)  # White (no category)
+
     def __init__(self, connection, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Auswertung")
-        self.setGeometry(400, 400, 300, 200)
+        self.setGeometry(400, 400, 300, 250)
 
         self.connection = connection
         layout = QVBoxLayout(self)
 
-        self.days_combo = QComboBox()
-        self.days_combo.addItems(["Letzte 7 Tage", "Letzte 31 Tage", "Letzte 90 Tage"])
-        layout.addWidget(self.days_combo)
+                # Legend explaining the color coding
+        legend_label = QLabel()
+        legend_html = """
+        <b>Farbcode für Blutdruckkategorien:</b>
+        <ul>
+            <li><span style="background-color: #00FF00; padding: 5px;">Grün: Optimal, Normal</span></li>
+            <li><span style="background-color: #FFFF00; padding: 5px;">Gelb: Hochnormal</span></li>
+            <li><span style="background-color: #FF0000; padding: 5px;">Rot: Hypertonie Grad 1-3, Isolierte systolische Hypertonie</span></li>
+        </ul>
+        """
+        legend_label.setText(legend_html)  # Set HTML content for legend
+        layout.addWidget(legend_label)
 
-        self.show_button = QPushButton("Anzeigen")
-        self.show_button.clicked.connect(self.display_data)
-        layout.addWidget(self.show_button)
+        # Create ComboBox with day options
+        self.days_combo = QComboBox()
+        day_options = DaysOption.get_day_options()
+
+        # Add the options to the ComboBox with human-readable labels
+        for label in day_options.keys():
+            self.days_combo.addItem(label, day_options[label])
+        
+        layout.addWidget(self.days_combo)
 
         # Table for displaying evaluation data
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Zeitstempel", "SYS", "DIA", "Puls"])
         layout.addWidget(self.table)
 
+        # Connect the combo box to automatically update the data on selection change
+        self.days_combo.currentIndexChanged.connect(self.display_data)
+
+        # Call display_data initially when the window is shown
+        self.display_data()
+
     def display_data(self):
         """Displays blood pressure data in the evaluation table."""
-        days = int(self.days_combo.currentText().split()[1])
+        # Get the number of days from the selected combo box item
+        days = self.days_combo.currentData()  # Get the associated integer value (7, 31, or 90)
         threshold_date = datetime.now() - timedelta(days=days)
 
         cursor = self.connection.cursor()
@@ -164,13 +191,45 @@ class EvaluationDialog(QWidget):
             self.insert_row(entry)
 
     def insert_row(self, entry):
-        """Inserts a row into the evaluation table."""
+        """Inserts a row into the evaluation table with color-coding."""
         row_position = self.table.rowCount()
         self.table.insertRow(row_position)
+
+        # Determine the category and color
+        color = self.get_row_color(entry.sys, entry.dia)
+
+        # Insert the values into the table
         self.table.setItem(row_position, 0, QTableWidgetItem(entry.timestamp))
         self.table.setItem(row_position, 1, QTableWidgetItem(str(entry.sys)))
         self.table.setItem(row_position, 2, QTableWidgetItem(str(entry.dia)))
         self.table.setItem(row_position, 3, QTableWidgetItem(str(entry.pulse)))
+
+        # Apply color
+        self.apply_row_color(row_position, color)
+
+    def apply_row_color(self, row_position, color):
+        """Applies the given color to all cells in the specified row."""
+        for col in range(4):  # Apply color to all columns in the row
+            self.table.item(row_position, col).setBackground(color)
+
+    def get_row_color(self, sys, dia):
+        """Determines the color based on the systolic and diastolic values."""
+        if sys < 120 and dia < 80:
+            return self.COLOR_OPTIMAL  # Green: Optimal
+        elif 120 <= sys <= 129 and 80 <= dia <= 84:
+            return self.COLOR_NORMAL  # Green: Normal
+        elif 130 <= sys <= 139 and 85 <= dia <= 89:
+            return self.COLOR_HOCHNORMAL  # Yellow: Hochnormal
+        elif 140 <= sys <= 159 and 90 <= dia <= 99:
+            return self.COLOR_HYPERTONIE_GRAD_1  # Red: Hypertonie Grad 1
+        elif 160 <= sys <= 179 and 100 <= dia <= 109:
+            return self.COLOR_HYPERTONIE_GRAD_2  # Red: Hypertonie Grad 2
+        elif sys >= 180 and dia >= 110:
+            return self.COLOR_HYPERTONIE_GRAD_3  # Red: Hypertonie Grad 3
+        elif sys >= 140 and dia < 90:
+            return self.COLOR_ISOLIERTE_HYPERTONIE  # Red: Isolierte systolische Hypertonie
+        else:
+            return self.COLOR_DEFAULT  # Default: White (no category)
 
 
 if __name__ == '__main__':
