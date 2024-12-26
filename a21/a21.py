@@ -185,21 +185,31 @@ class EvaluationDialog(QDialog):
         self.pdf_button.clicked.connect(self.export_pdf)
         layout.addWidget(self.pdf_button)
 
-    def display_data(self):
-        """Displays blood pressure data in the evaluation table."""
-        # Get the number of days from the selected combo box item
-        days = self.days_combo.currentData()  # Get the associated integer value (7, 31, or 90)
+    def fetch_filtered_data(self, days):
+        """Fetches blood pressure data based on the selected number of days."""
         threshold_date = datetime.now() - timedelta(days=days)
-
+        
+        # Query to fetch data from the database where the timestamp is greater than the threshold date
         cursor = self.connection.cursor()
         cursor.execute('''
             SELECT timestamp, sys, dia, pulse
             FROM blood_pressure
             WHERE timestamp >= ?
         ''', (threshold_date.strftime("%Y-%m-%d %H:%M:%S"),))
+        
+        # Return the result as a list of tuples (timestamp, sys, dia, pulse)
+        return cursor.fetchall()
+
+    def display_data(self):
+        """Displays blood pressure data in the evaluation table."""
+        # Get the number of days from the selected combo box item
+        days = self.days_combo.currentData()  # Get the associated integer value (7, 31, or 90)
+        
+        # Fetch filtered data based on the selected number of days
+        rows = self.fetch_filtered_data(days)
 
         self.table.setRowCount(0)  # Reset the table
-        for timestamp, sys, dia, pulse in cursor.fetchall():
+        for timestamp, sys, dia, pulse in rows:
             entry = BloodPressureEntry(timestamp, sys, dia, pulse)
             self.insert_row(entry)
 
@@ -244,7 +254,7 @@ class EvaluationDialog(QDialog):
         else:
             return self.COLOR_DEFAULT  # Default: White (no category)
 
-    
+
     ## PDF export functions
     
     def export_pdf(self):
@@ -299,10 +309,11 @@ class EvaluationDialog(QDialog):
                 </tr>
         """
         
-        # Fetch the data from the database
-        cursor = self.connection.cursor()
-        cursor.execute('SELECT timestamp, sys, dia, pulse FROM blood_pressure')  # Ensure query is correct
-        rows = cursor.fetchall()
+        # Get the number of days from the selected combo box item
+        days = self.days_combo.currentData()
+        
+        # Fetch filtered data based on the selected number of days
+        rows = self.fetch_filtered_data(days)
 
         if not rows:
             print("No data found in the database.")
@@ -325,7 +336,6 @@ class EvaluationDialog(QDialog):
         html += "</table></body></html>"
         
         return html
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
