@@ -4,23 +4,36 @@ from PyQt5.QtWidgets import (
     QRadioButton, QLineEdit, QPushButton, QMessageBox, QHBoxLayout, QWidget
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
 import datetime
 
 
 def calculate_easter(year, orthodox=False):
     """Berechnet das Osterdatum für ein gegebenes Jahr."""
+    
+    # Calculation is derived from the well-known easter algorithms
+    # Orthodox algorithm derived from https://en.wikipedia.org/wiki/Date_of_Easter
+    # Christian algorithm (Gauss easter algorithm) derived from https://www.geeksforgeeks.org/how-to-calculate-the-easter-date-for-a-given-year-using-gauss-algorithm/
+    
     year = int(year)
     if orthodox:
         # Griechisch-Orthodoxe Berechnung (Julianischer Kalender)
+        # Step 1: Calculate the "Golden Number"
         a = year % 19
+        
+        # Step 2: Calculate the epact (lunar cycle) for the Julian calendar
         b = year % 7
         c = year % 4
         d = (19 * a + 16) % 30
         e = (2 * c + 4 * b + 6 * d) % 7
+
+        # Step 3: Calculate the date of the Paschal Full Moon
         day = d + e + 3
         if day > 30:
+            # Easter falls in May
             easter = datetime.date(year, 5, day - 30)
         else:
+            # Easter falls in April
             easter = datetime.date(year, 4, day)
     else:
         # Christliche Berechnung (Gregorianischer Kalender)
@@ -101,22 +114,21 @@ class EasterDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
         self.setWindowTitle("Osterfestberechnung")
-        self.setGeometry(300, 300, 400, 300)
+        
+        self.pixmap = QPixmap('res/easter.jpg')
+        self.aspect_ratio = self.pixmap.width() / self.pixmap.height()
+
+        self.label = QLabel(self)
+        self.label.setPixmap(self.pixmap)
+
+        # Optional, resize label to image size
+        self.label.resize(self.pixmap.width(), self.pixmap.height())
 
         # Zentrales Widget und Layout
         central_widget = QWidget()
         layout = QVBoxLayout(central_widget)
-
-        # Buttons im Hauptfenster
-        self.determine_easter_button = QPushButton("Ostern bestimmen")
-        self.determine_easter_button.clicked.connect(self.open_easter_dialog)
-
-        self.exit_button = QPushButton("Beenden")
-        self.exit_button.clicked.connect(self.close)
-
-        layout.addWidget(self.determine_easter_button)
-        layout.addWidget(self.exit_button)
 
         self.setCentralWidget(central_widget)
 
@@ -134,10 +146,36 @@ class MainWindow(QMainWindow):
         determine_easter_action.triggered.connect(self.open_easter_dialog)
         easter_menu.addAction(determine_easter_action)
 
+        # Move image down
+        self.label.move(0, menubar.height())
+
+        # Calculate total required size
+        total_height = self.pixmap.height() +  self.menuBar().height()
+
+        # Resize the window to fit the pixmap and additional layout
+        self.resize(self.pixmap.width(), total_height)
+
     def open_easter_dialog(self):
         self.dialog = EasterDialog()
         self.dialog.exec_()
 
+    # overwrites the main windows default resize event, so that aspect ration of the image is preserved 
+    def resizeEvent(self, event):
+        # Get the new width and enforce the aspect ratio
+        new_width = event.size().width()
+        new_height = int(new_width / self.aspect_ratio)
+
+        # Restrict the window size to maintain aspect ratio
+        self.resize(new_width, new_height)
+
+        # Resize and position the label to fit the new dimensions
+        self.label.setGeometry(0, self.menuBar().height(), new_width, new_height)
+
+        # Resize the label to fit the new dimensions
+        self.label.setPixmap(self.pixmap.scaled(new_width, new_height, Qt.KeepAspectRatio))
+        
+        # Call the parent class resizeEvent
+        super().resizeEvent(event)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
