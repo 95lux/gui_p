@@ -3,11 +3,11 @@ import sqlite3
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QFormLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QDialog  
+    QLabel, QLineEdit, QPushButton, QComboBox, QMessageBox, QTableWidget, QTableWidgetItem, QDialog, QFileDialog
 )
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import (QColor, QPainter, QPdfWriter, QFont, QTextDocument)
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt5.QtCore import Qt
-
 
 class BloodPressureEntry:
     """Data structure for storing a blood pressure entry."""
@@ -25,7 +25,7 @@ class BloodPressureTracker(QMainWindow):
         self.setGeometry(300, 300, 400, 300)
 
         # Initialize SQLite database
-        self.connection = sqlite3.connect('blood_pressure.db')
+        self.connection = sqlite3.connect('db/blood_pressure.db')
         self.create_table()
 
         # Central widget and layout
@@ -130,6 +130,16 @@ class EvaluationDialog(QDialog):
     COLOR_ISOLIERTE_HYPERTONIE = QColor(200, 0, 0)  # Red: Isolierte systolische Hypertonie
     COLOR_DEFAULT = QColor(255, 255, 255)  # White (no category)
 
+        # Class-level variable for the legend HTML
+    LEGEND_HTML = """
+    <b>Farbcode für Blutdruckkategorien:</b>
+    <ul>
+        <li><span style="background-color: {COLOR_NORMAL}; padding: 5px;">Grün: Optimal, Normal</span></li>
+        <li><span style="background-color: {COLOR_HOCHNORMAL}; padding: 5px;">Gelb: Hochnormal</span></li>
+        <li><span style="background-color: {COLOR_HYPERTONIE_GRAD_1}; padding: 5px;">Rot: Hypertonie Grad 1-3, Isolierte systolische Hypertonie</span></li>
+    </ul>
+    """
+
     def __init__(self, connection, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Auswertung")
@@ -140,14 +150,12 @@ class EvaluationDialog(QDialog):
 
                 # Legend explaining the color coding
         legend_label = QLabel()
-        legend_html = """
-        <b>Farbcode für Blutdruckkategorien:</b>
-        <ul>
-            <li><span style="background-color: #00FF00; padding: 5px;">Grün: Optimal, Normal</span></li>
-            <li><span style="background-color: #FFFF00; padding: 5px;">Gelb: Hochnormal</span></li>
-            <li><span style="background-color: #FF0000; padding: 5px;">Rot: Hypertonie Grad 1-3, Isolierte systolische Hypertonie</span></li>
-        </ul>
-        """
+        legend_html = self.LEGEND_HTML.format(
+            COLOR_NORMAL=self.COLOR_NORMAL.name(),
+            COLOR_HOCHNORMAL=self.COLOR_HOCHNORMAL.name(),
+            COLOR_HYPERTONIE_GRAD_1=self.COLOR_HYPERTONIE_GRAD_1.name()
+        )
+
         legend_label.setText(legend_html)  # Set HTML content for legend
         layout.addWidget(legend_label)
 
@@ -171,6 +179,11 @@ class EvaluationDialog(QDialog):
 
         # Call display_data initially when the window is shown
         self.display_data()
+
+        # Add PDF export button
+        self.pdf_button = QPushButton("Exportieren als PDF")
+        self.pdf_button.clicked.connect(self.export_pdf)
+        layout.addWidget(self.pdf_button)
 
     def display_data(self):
         """Displays blood pressure data in the evaluation table."""
@@ -230,6 +243,88 @@ class EvaluationDialog(QDialog):
             return self.COLOR_ISOLIERTE_HYPERTONIE  # Red: Isolierte systolische Hypertonie
         else:
             return self.COLOR_DEFAULT  # Default: White (no category)
+
+    
+    ## PDF export functions
+    
+    def export_pdf(self):
+        """Exports the evaluation dialog content to a PDF using HTML rendering."""
+        # Create the HTML content for the evaluation
+        html_content = self.generate_html_content()
+
+        # Create a QTextDocument to handle the HTML rendering
+        document = QTextDocument()
+        document.setHtml(html_content)
+
+        # Set up the printer to export to PDF
+        printer = QPrinter(QPrinter.HighResolution)
+        printer.setOutputFormat(QPrinter.PdfFormat)
+        printer.setOutputFileName("output/evaluation_report.pdf")
+
+        # Print the document to the PDF
+        document.print(printer)
+
+        print("PDF exported successfully to evaluation_report.pdf")
+
+    def generate_html_content(self):
+        """Generates the HTML content for the evaluation report."""
+        
+        # Load the CSS from the external file
+        with open("res/styles.css", "r") as css_file:
+            css_content = css_file.read()
+
+        # HTML content for the legend and table
+        html = f"""
+        <html>
+        <head>
+            <style>
+            {css_content}
+            </style>
+        </head>
+        <body>
+            <div class="legend">
+                <b>Farbcode für Blutdruckkategorien:</b>
+                <ul>
+                    <li><span style="background-color: {self.COLOR_NORMAL.name()}; padding: 5px;">Grün: Optimal, Normal</span></li>
+                    <li><span style="background-color: {self.COLOR_HOCHNORMAL.name()}; padding: 5px;">Gelb: Hochnormal</span></li>
+                    <li><span style="background-color: {self.COLOR_HYPERTONIE_GRAD_1.name()}; padding: 5px;">Rot: Hypertonie Grad 1-3, Isolierte systolische Hypertonie</span></li>
+                </ul>
+            </div>
+            <table>
+                <tr>
+                    <th>Zeitstempel</th>
+                    <th>SYS</th>
+                    <th>DIA</th>
+                    <th>Puls</th>
+                </tr>
+        """
+        
+        # Fetch the data from the database
+        cursor = self.connection.cursor()
+        cursor.execute('SELECT timestamp, sys, dia, pulse FROM blood_pressure')  # Ensure query is correct
+        rows = cursor.fetchall()
+
+        if not rows:
+            print("No data found in the database.")
+        
+        # Add table rows (replace this with actual data from your database)
+        for timestamp, sys, dia, pulse in rows:
+            # Get the color for this row based on the blood pressure values
+            # Function returns QColor object. only use the .name(), which retrieves hexcode of the color
+            color = self.get_row_color(sys, dia).name()  # Get row color based on the blood pressure values
+            html += f"""
+            <tr style="background-color: {color};">
+                <td>{timestamp}</td>
+                <td>{sys}</td>
+                <td>{dia}</td>
+                <td>{pulse}</td>
+            </tr>
+            """
+
+        # Close the table and return the HTML
+        html += "</table></body></html>"
+        
+        return html
 
 
 if __name__ == '__main__':
