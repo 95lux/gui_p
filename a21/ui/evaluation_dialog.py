@@ -6,23 +6,67 @@ from blood_pressure_entry import BloodPressureEntry
 from days_option import DaysOption
 
 class EvaluationDialog(QDialog):
-    # Color attributes for each category
-    COLOR_OPTIMAL = QColor(0, 255, 0)  # Green: Optimal
-    COLOR_NORMAL = QColor(0, 255, 0)  # Green: Normal
-    COLOR_HOCHNORMAL = QColor(255, 255, 0)  # Yellow: Hochnormal
-    COLOR_HYPERTONIE_GRAD_1 = QColor(200, 0, 0)  # Red: Hypertonie Grad 1
-    COLOR_HYPERTONIE_GRAD_2 = QColor(200, 0, 0)  # Red: Hypertonie Grad 2
-    COLOR_HYPERTONIE_GRAD_3 = QColor(200, 0, 0)  # Red: Hypertonie Grad 3
-    COLOR_ISOLIERTE_HYPERTONIE = QColor(200, 0, 0)  # Red: Isolierte systolische Hypertonie
-    COLOR_DEFAULT = QColor(255, 255, 255)  # White (no category)
+    COLOR_OPTIMAL = QColor(0, 255, 0)               # Optimal: Green
+    COLOR_NORMAL = QColor(0, 200, 0)                # Normal: A slightly darker Green
 
+    COLOR_HOCHNORMAL = QColor(255, 255, 0)          # Light Yellow
+
+    COLOR_HYPERTONIE_GRAD_1 = QColor(255, 100, 100) # Light Red for Grad 1
+    COLOR_HYPERTONIE_GRAD_2 = QColor(255, 50, 50)   # Darker Red for Grad 2
+    COLOR_HYPERTONIE_GRAD_3 = QColor(200, 0, 0)     # Dark Red for Grad 3
+    COLOR_ISOLIERTE_HYPERTONIE = QColor(200, 0, 0)  # Same as Hypertonie Grad 3
+    
+    COLOR_DEFAULT = QColor(255, 255, 255)           # White (no category)
+
+    # HTML Legend with Table for Blood Pressure Categories and Values
     LEGEND_HTML = f"""
     <b>Farbcode für Blutdruckkategorien:</b>
-    <ul>
-        <li><span style="background-color: {COLOR_NORMAL.name()}; padding: 5px;">Grün: Optimal, Normal</span></li>
-        <li><span style="background-color: {COLOR_HOCHNORMAL.name()}; padding: 5px;">Gelb: Hochnormal</span></li>
-        <li><span style="background-color: {COLOR_HYPERTONIE_GRAD_1.name()}; padding: 5px;">Rot: Hypertonie Grad 1-3, Isolierte systolische Hypertonie</span></li>
-    </ul>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Blutdruckkategorie</th>
+                <th>Systolischer Wert</th>
+                <th>Diastolischer Wert</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="background-color: {COLOR_OPTIMAL.name()};">Optimal</td>
+                <td>unter 120</td>
+                <td>unter 80</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_NORMAL.name()};">Normal</td>
+                <td>120 bis 129</td>
+                <td>80 bis 84</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_HOCHNORMAL.name()};">Hochnormal</td>
+                <td>130 bis 139</td>
+                <td>85 bis 89</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_HYPERTONIE_GRAD_1.name()};">Hypertonie Grad 1</td>
+                <td>140 bis 159</td>
+                <td>90 bis 99</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_HYPERTONIE_GRAD_2.name()};">Hypertonie Grad 2</td>
+                <td>160 bis 179</td>
+                <td>100 bis 109</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_HYPERTONIE_GRAD_3.name()};">Hypertonie Grad 3</td>
+                <td>180 oder mehr</td>
+                <td>110 oder mehr</td>
+            </tr>
+            <tr>
+                <td style="background-color: {COLOR_ISOLIERTE_HYPERTONIE.name()};">Isolierte systolische Hypertonie</td>
+                <td>140 oder mehr</td>
+                <td>unter 90</td>
+            </tr>
+        </tbody>
+    </table>
     """
 
     def __init__(self, db_manager, parent=None):
