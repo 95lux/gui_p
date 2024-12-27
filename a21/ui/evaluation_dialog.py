@@ -21,7 +21,7 @@ class EvaluationDialog(QDialog):
     # HTML Legend with Table for Blood Pressure Categories and Values
     LEGEND_HTML = f"""
     <b>Farbcode für Blutdruckkategorien:</b>
-    <table border="1" cellpadding="5" cellspacing="0">
+    <table border="1" cellpadding="3" cellspacing="0">
         <thead>
             <tr>
                 <th>Blutdruckkategorie</th>
@@ -171,6 +171,7 @@ class EvaluationDialog(QDialog):
                 <div class="legend">
                     {self.LEGEND_HTML}
                 </div>
+                <h2>Evaluation Report</h2>
                 <table>
                     <tr>
                         <th>Zeitstempel</th>
