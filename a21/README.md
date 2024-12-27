@@ -1,6 +1,6 @@
 # Blood Pressure Tracker
 
-A simple PyQt5 application to log and evaluate blood pressure data using an SQLite database.
+A PyQt5 application to log and evaluate blood pressure data using an SQLite database.
 
 ## Project Structure
 
@@ -29,6 +29,6 @@ A simple PyQt5 application to log and evaluate blood pressure data using an SQLi
 
 ## How to Run
 1. Install the required dependencies (`PyQt5`, `sqlite3` is included with Python).
-2. Run `main.py` from root of repository, to launch the application.
+2. Run `main.py` from `a21` folder, to launch the application.
 3. Use the main window to log blood pressure data and evaluate past entries.
 
