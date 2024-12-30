@@ -1,4 +1,4 @@
-# Project Name
+# GUI P
 
 This project includes multiple PyQt5 applications for different functionalities. Below are the individual components with links to their specific documentation.
 
