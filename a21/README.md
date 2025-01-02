@@ -1,6 +1,7 @@
 # Blood Pressure Tracker
 
-A PyQt5 application to log and evaluate blood pressure data using an SQLite database.
+A PyQt5 application to log and evaluate blood pressure data using an SQLite database. 
+PDF export is enabled through HTML rendering.
 
 ## Project Structure
 

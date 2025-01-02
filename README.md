@@ -1,13 +1,14 @@
-# Project Name
+# GUI Praktikum Gruppe 7
 
-This project includes multiple PyQt5 applications for different functionalities. Below are the individual components with links to their specific documentation.
+This project covers excercices 11 and 21 for the course "Programming of Graphical User Interfaces". 
+The applications are implemented in Python, using the [PyQt5](https://pypi.org/project/PyQt5/) library. 
 
 ## Project Structure
 
-- **Easter Festival Calculator**  
-  A PyQt5 application to calculate Easter and related holidays.  
+- **[/a11](./a11/) - Easter Festival Calculator**  
+  Application to calculate Easter and related holidays.  
   [Read the detailed README](./a11/README.md)
 
-- **Blood Pressure Tracker**  
-  A PyQt5 application to log and evaluate blood pressure data using an SQLite database.  
+- **[/a21](./a21/) - Blood Pressure Tracker**  
+  Application to log and evaluate blood pressure data using an SQLite database.  
   [Read the detailed README](./a21/README.md)
