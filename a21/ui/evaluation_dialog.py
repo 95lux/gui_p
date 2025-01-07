@@ -82,12 +82,14 @@ class EvaluationDialog(QDialog):
         legend_label.setText(self.LEGEND_HTML)
         layout.addWidget(legend_label)
 
+        # Populate Combobox with Values
         self.days_combo = QComboBox()
         day_options = DaysOption.get_day_options()
         for label in day_options.keys():
             self.days_combo.addItem(label, day_options[label])
         layout.addWidget(self.days_combo)
 
+        # Create table
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Zeitstempel", "SYS", "DIA", "Puls"])
         layout.addWidget(self.table)
@@ -100,6 +102,7 @@ class EvaluationDialog(QDialog):
         layout.addWidget(self.pdf_button)
 
     def display_data(self):
+        """Fetches database entries dependend on comobox settings, and populates table"""
         days = self.days_combo.currentData()
         rows = self.db_manager.fetch_filtered_data(days)
 
@@ -109,6 +112,7 @@ class EvaluationDialog(QDialog):
             self.insert_row(entry)
 
     def insert_row(self, entry):
+        """creates row in table and populates its individual cells"""
         row_position = self.table.rowCount()
         self.table.insertRow(row_position)
 
@@ -120,10 +124,12 @@ class EvaluationDialog(QDialog):
         self.apply_row_color(row_position, color)
 
     def apply_row_color(self, row_position, color):
+        """colors row"""
         for col in range(4):
             self.table.item(row_position, col).setBackground(color)
 
     def get_row_color(self, sys, dia):
+        """lookup table for row"""
         if sys < 120 and dia < 80:
             return self.COLOR_OPTIMAL
         elif 120 <= sys <= 129 and 80 <= dia <= 84:
@@ -153,58 +159,58 @@ class EvaluationDialog(QDialog):
         print("evaluation_report.pdf has been saved.")
 
     def generate_html_content(self):
-            """Generates the HTML content for pdf export."""
-            
-            # Load the CSS from the external file
-            with open("res/styles.css", "r") as css_file:
-                css_content = css_file.read()
+        """Generates the HTML content for pdf export."""
+        
+        # Load the CSS from the external file
+        with open("res/styles.css", "r") as css_file:
+            css_content = css_file.read()
 
-            # HTML content for the legend and table
-            html = f"""
-            <html>
-            <head>
-                <style>
-                {css_content}
-                </style>
-            </head>
-            <body>
-                <div class="legend">
-                    {self.LEGEND_HTML}
-                </div>
-                <h2>Evaluation Report</h2>
-                <table>
-                    <tr>
-                        <th>Zeitstempel</th>
-                        <th>SYS</th>
-                        <th>DIA</th>
-                        <th>Puls</th>
-                    </tr>
-            """
-            
-            # Get the number of days from the selected combo box item
-            days = self.days_combo.currentData()
-            
-            # Fetch filtered data based on the selected number of days
-            rows = self.db_manager.fetch_filtered_data(days)
-
-            if not rows:
-                print("No data found in the database.")
-            
-            # Add table rows (replace this with actual data from your database)
-            for timestamp, sys, dia, pulse in rows:
-                # Get the color for this row based on the blood pressure values
-                # Function returns QColor object. only use the .name(), which retrieves hexcode of the color
-                color = self.get_row_color(sys, dia).name()  # Get row color based on the blood pressure values
-                html += f"""
-                <tr style="background-color: {color};">
-                    <td>{timestamp}</td>
-                    <td>{sys}</td>
-                    <td>{dia}</td>
-                    <td>{pulse}</td>
+        # HTML content for the legend and table
+        html = f"""
+        <html>
+        <head>
+            <style>
+            {css_content}
+            </style>
+        </head>
+        <body>
+            <div class="legend">
+                {self.LEGEND_HTML}
+            </div>
+            <h2>Evaluation Report</h2>
+            <table>
+                <tr>
+                    <th>Zeitstempel</th>
+                    <th>SYS</th>
+                    <th>DIA</th>
+                    <th>Puls</th>
                 </tr>
-                """
+        """
+        
+        # Get the number of days from the selected combo box item
+        days = self.days_combo.currentData()
+        
+        # Fetch filtered data based on the selected number of days
+        rows = self.db_manager.fetch_filtered_data(days)
 
-            # Close the table and return the HTML
-            html += "</table></body></html>"
-            
-            return html
+        if not rows:
+            print("No data found in the database.")
+        
+        # Add table rows (replace this with actual data from your database)
+        for timestamp, sys, dia, pulse in rows:
+            # Get the color for this row based on the blood pressure values
+            # Function returns QColor object. only use the .name(), which retrieves hexcode of the color
+            color = self.get_row_color(sys, dia).name()  # Get row color based on the blood pressure values
+            html += f"""
+            <tr style="background-color: {color};">
+                <td>{timestamp}</td>
+                <td>{sys}</td>
+                <td>{dia}</td>
+                <td>{pulse}</td>
+            </tr>
+            """
+
+        # Close the table and return the HTML
+        html += "</table></body></html>"
+        
+        return html
